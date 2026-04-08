@@ -1,0 +1,86 @@
+@import '@fontsource/fraunces/400.css';
+@import '@fontsource/fraunces/600.css';
+@import '@fontsource/geist-sans/400.css';
+@import '@fontsource/geist-sans/500.css';
+@import '@fontsource/geist-sans/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light — Architect's Paper */
+    --bg-0: #f7f5f1;
+    --bg-1: #ffffff;
+    --bg-2: #efebe3;
+    --line: #d9d3c7;
+    --line-hot: #b9b3a7;
+    --ink-0: #17181a;
+    --ink-1: #5a5f66;
+    --ink-2: #8b8f96;
+    --accent: #0097a7;
+    --accent-dim: #00737f;
+    --warn: #d9921e;
+    --danger: #c23e3e;
+  }
+
+  html.dark {
+    /* Dark — Midnight Studio */
+    --bg-0: #0b0c0e;
+    --bg-1: #14161a;
+    --bg-2: #1a1b1e;
+    --line: #24272c;
+    --line-hot: #2f343a;
+    --ink-0: #eceef1;
+    --ink-1: #9aa0a6;
+    --ink-2: #5a5f66;
+    --accent: #00e5ff;
+    --accent-dim: #00b8cc;
+    --warn: #f0b429;
+    --danger: #e05252;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-bg-0 text-ink-0 font-sans antialiased;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    background-image: url('/patterns/contours.svg');
+    background-repeat: repeat;
+    background-size: 400px 400px;
+    background-blend-mode: overlay;
+    color: var(--ink-0);
+  }
+
+  * {
+    @apply border-line;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+}
+
+@layer components {
+  .label {
+    @apply text-xxs uppercase text-ink-1 tracking-label font-medium;
+  }
+
+  .surface {
+    @apply bg-bg-1 border border-line rounded-sm;
+  }
+
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg-0;
+  }
+}
