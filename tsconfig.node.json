@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    // Composite projects require declarations — emit them into a throwaway
+    // dir (gitignored) so they don't appear as phantom .d.ts siblings next to
+    // the config files at the repo root.
+    "outDir": "./node_modules/.cache/tsc-node",
+    "declarationDir": "./node_modules/.cache/tsc-node"
+  },
+  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+}
