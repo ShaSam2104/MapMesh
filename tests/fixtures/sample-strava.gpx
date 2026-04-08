@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="meshmap-test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Mumbai promenade</name>
+    <time>2026-04-08T06:00:00Z</time>
+  </metadata>
+  <trk>
+    <name>Marine Drive loop</name>
+    <trkseg>
+      <trkpt lat="19.0760" lon="72.8777"><ele>6</ele></trkpt>
+      <trkpt lat="19.0765" lon="72.8782"><ele>6</ele></trkpt>
+      <trkpt lat="19.0770" lon="72.8787"><ele>7</ele></trkpt>
+      <trkpt lat="19.0775" lon="72.8792"><ele>7</ele></trkpt>
+      <trkpt lat="19.0780" lon="72.8797"><ele>8</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

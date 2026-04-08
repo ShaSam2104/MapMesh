@@ -1,0 +1,22 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API (fixture)",
+  "elements": [
+    { "type": "node", "id": 1, "lat": 19.076, "lon": 72.8777 },
+    { "type": "node", "id": 2, "lat": 19.077, "lon": 72.8787 },
+    { "type": "node", "id": 3, "lat": 19.077, "lon": 72.8777 },
+    { "type": "node", "id": 4, "lat": 19.076, "lon": 72.8787 },
+    {
+      "type": "way",
+      "id": 101,
+      "nodes": [1, 4, 2, 3, 1],
+      "tags": { "building": "yes", "height": "20" }
+    },
+    {
+      "type": "way",
+      "id": 102,
+      "nodes": [1, 2],
+      "tags": { "highway": "residential" }
+    }
+  ]
+}
