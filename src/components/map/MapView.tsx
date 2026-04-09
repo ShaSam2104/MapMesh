@@ -1,6 +1,7 @@
 import Map, { NavigationControl, AttributionControl } from 'react-map-gl/maplibre';
 import { useStore } from '@/state/store';
 import { SelectionOverlay } from './SelectionOverlay';
+import { GpxOverlay } from './GpxOverlay';
 
 // Both styles come from CartoDB's free basemap CDN. Positron is the canonical
 // light counterpart to Dark Matter — real OSM street data, not the MapLibre
@@ -36,6 +37,7 @@ export function MapView(): JSX.Element {
           compact
           customAttribution="© OpenStreetMap contributors"
         />
+        <GpxOverlay />
         <SelectionOverlay />
       </Map>
     </div>

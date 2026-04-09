@@ -4,6 +4,7 @@ import { centroid as turfCentroid } from '@turf/turf';
 import { useStore } from '@/state/store';
 import { parseGpx } from '@/lib/data/gpx';
 import { tagged } from '@/lib/log/logger';
+import { useGenerateMesh } from '@/hooks/useGenerateMesh';
 import { Button } from '@/components/ui/Button';
 
 const log = tagged('gpx-upload');
@@ -14,6 +15,7 @@ export function GpxUploader(): JSX.Element {
   const setSelectionCenter = useStore((s) => s.setSelectionCenter);
   const setView = useStore((s) => s.setView);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const generate = useGenerateMesh();
 
   const onFile = async (file: File) => {
     const text = await file.text();
@@ -27,6 +29,7 @@ export function GpxUploader(): JSX.Element {
     // Recenter the map + selection on the GPX centroid so the uploaded track
     // is inside the active selection. Without this the user uploads a route
     // from another city and the preview never updates.
+    let recentered = false;
     try {
       const c = turfCentroid(parsed.geojson);
       const [lng, lat] = c.geometry.coordinates as [number, number];
@@ -34,9 +37,19 @@ export function GpxUploader(): JSX.Element {
         setSelectionCenter([lng, lat]);
         setView({ center: [lng, lat], zoom: 14 });
         log.info('gpx recenter', { lng, lat, distanceKm: parsed.distanceKm });
+        recentered = true;
       }
     } catch (err) {
       log.warn('gpx centroid failed', err);
+    }
+
+    // If the user already has a generated mesh, immediately re-run the
+    // pipeline so the freshly-uploaded path appears on the plinth without
+    // them having to click Generate again. Skip if there's no mesh yet —
+    // we don't want to silently kick off an Overpass call on first upload.
+    const meshStatus = useStore.getState().mesh.status;
+    if (recentered && meshStatus === 'ready') {
+      void generate();
     }
   };
 
