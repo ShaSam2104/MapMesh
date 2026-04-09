@@ -24,17 +24,25 @@ const log = tagged('overpass');
 
 /**
  * Mirror list, tried in order on retriable failures (504 gateway timeout,
- * 429 rate-limit, network error, or client-side abort timeout). Kumi
- * Systems is a well-known high-performance community mirror.
+ * 429 rate-limit, network error, or client-side abort timeout).
+ *
+ * Order rationale: kumi.systems is a well-known high-performance community
+ * mirror that is consistently faster than the main `overpass-api.de` host
+ * for dense urban bboxes. The main mirror is kept second as a fallback,
+ * with the French OSM mirror as a last resort.
  */
 const MIRRORS = [
-  'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
   'https://overpass.openstreetmap.fr/api/interpreter',
 ] as const;
 
-/** Client-side hard timeout (ms). Slightly over the server [timeout:60]. */
-const CLIENT_TIMEOUT_MS = 70_000;
+/**
+ * Client-side hard timeout (ms). Sized slightly over the server-side
+ * `[timeout:25]` budget so we fail fast on a stuck mirror and move on
+ * instead of holding the user hostage for over a minute per attempt.
+ */
+const CLIENT_TIMEOUT_MS = 35_000;
 
 export interface FetchOverpassOptions {
   /**
@@ -80,12 +88,12 @@ export async function fetchOverpass(
   }
 
   done();
-  const friendly =
-    lastError instanceof Error && lastError.message.includes('504')
-      ? 'Overpass timed out on every mirror — try a smaller selection area.'
-      : lastError instanceof Error
-        ? `Overpass fetch failed: ${lastError.message}`
-        : 'Overpass fetch failed';
+  const errMsg =
+    lastError instanceof Error ? lastError.message : String(lastError);
+  const isTimeout = errMsg.includes('504') || errMsg.includes('client timeout');
+  const friendly = isTimeout
+    ? 'Overpass timed out on every mirror — the free public API is busy. Try a smaller selection area or wait a moment and retry.'
+    : `Overpass fetch failed: ${errMsg}`;
   log.error('overpass giving up', { friendly });
   throw new Error(friendly);
 }

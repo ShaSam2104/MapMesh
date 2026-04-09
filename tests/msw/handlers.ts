@@ -55,6 +55,11 @@ export const handlers = [
         headers: { 'Content-Type': 'image/png' },
       }),
   ),
+  // Mirror order in src/lib/data/overpass.ts puts kumi.systems first; we
+  // mock both so MSW serves the default fixture regardless of order.
+  http.post('https://overpass.kumi.systems/api/interpreter', () =>
+    HttpResponse.json(MOCK_OVERPASS),
+  ),
   http.post('https://overpass-api.de/api/interpreter', () =>
     HttpResponse.json(MOCK_OVERPASS),
   ),

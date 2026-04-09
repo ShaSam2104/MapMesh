@@ -19,7 +19,11 @@ import type { Feature } from 'geojson';
 export function buildOverpassQuery(bbox: Bbox): string {
   const [minLng, minLat, maxLng, maxLat] = bbox;
   const b = `${minLat},${minLng},${maxLat},${maxLng}`;
-  return `[out:json][timeout:60];
+  // Server-side budget kept tight ([timeout:25]) so the free Overpass
+  // mirrors fail fast on overload and we move on to the next mirror
+  // instead of holding a single connection open for 60 s. The client-side
+  // hard timeout in overpass.ts is sized just over this.
+  return `[out:json][timeout:25];
 (
   way["building"](${b});
   relation["type"="multipolygon"]["building"](${b});
@@ -29,13 +33,13 @@ export function buildOverpassQuery(bbox: Bbox): string {
   way["natural"="water"](${b});
   relation["type"="multipolygon"]["natural"="water"](${b});
   way["waterway"](${b});
-  way["water"](${b});
   way["landuse"~"reservoir|basin"](${b});
 
-  way["landuse"~"grass|meadow|recreation_ground|village_green"](${b});
-  relation["type"="multipolygon"]["landuse"~"grass|meadow"](${b});
-  way["natural"="grassland"](${b});
-  way["leisure"~"park|garden|pitch"](${b});
+  way["landuse"~"grass|meadow|recreation_ground|village_green|forest|cemetery|orchard|vineyard|farmland|allotments"](${b});
+  relation["type"="multipolygon"]["landuse"~"grass|meadow|forest|cemetery"](${b});
+  way["natural"~"grassland|wood|scrub|heath"](${b});
+  way["leisure"~"park|garden|pitch|golf_course|nature_reserve|playground"](${b});
+  relation["type"="multipolygon"]["leisure"~"park|nature_reserve"](${b});
 
   way["natural"~"sand|beach"](${b});
   way["landuse"="sand"](${b});
@@ -96,16 +100,29 @@ export function classifyFeature(feature: Feature): LayerKey | null {
     return 'sand';
   }
 
-  // Grass / parks
+  // Grass / parks / wooded areas — anything green that should read as
+  // "vegetation" on the printed mesh.
   if (
     p.landuse === 'grass' ||
     p.landuse === 'meadow' ||
     p.landuse === 'recreation_ground' ||
     p.landuse === 'village_green' ||
+    p.landuse === 'forest' ||
+    p.landuse === 'cemetery' ||
+    p.landuse === 'orchard' ||
+    p.landuse === 'vineyard' ||
+    p.landuse === 'farmland' ||
+    p.landuse === 'allotments' ||
     p.natural === 'grassland' ||
+    p.natural === 'wood' ||
+    p.natural === 'scrub' ||
+    p.natural === 'heath' ||
     p.leisure === 'park' ||
     p.leisure === 'garden' ||
-    p.leisure === 'pitch'
+    p.leisure === 'pitch' ||
+    p.leisure === 'golf_course' ||
+    p.leisure === 'nature_reserve' ||
+    p.leisure === 'playground'
   ) {
     return 'grass';
   }

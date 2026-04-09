@@ -29,13 +29,12 @@ describe('fetchOverpass', () => {
     expect(Array.isArray(fc.features)).toBe(true);
   });
 
-  it('falls back to the next mirror on 504 and succeeds', async () => {
+  it('tries kumi.systems first and falls back to overpass-api.de on 504', async () => {
     server.use(
-      http.post(
-        'https://overpass-api.de/api/interpreter',
-        () => new HttpResponse('gateway timeout', { status: 504 }),
-      ),
       http.post('https://overpass.kumi.systems/api/interpreter', () =>
+        HttpResponse.text('gateway timeout', { status: 504 }),
+      ),
+      http.post('https://overpass-api.de/api/interpreter', () =>
         HttpResponse.json(OK_BODY),
       ),
     );
@@ -44,35 +43,37 @@ describe('fetchOverpass', () => {
     expect(fc.features.length).toBeGreaterThan(0);
   });
 
-  it('throws a human-readable error when every mirror fails with 504', async () => {
+  it('throws a human-readable error mentioning the free public API when every mirror fails with 504', async () => {
     server.use(
-      http.post('https://overpass-api.de/api/interpreter', () =>
+      http.post('https://overpass.kumi.systems/api/interpreter', () =>
         HttpResponse.text('t', { status: 504 }),
       ),
-      http.post('https://overpass.kumi.systems/api/interpreter', () =>
+      http.post('https://overpass-api.de/api/interpreter', () =>
         HttpResponse.text('t', { status: 504 }),
       ),
       http.post('https://overpass.openstreetmap.fr/api/interpreter', () =>
         HttpResponse.text('t', { status: 504 }),
       ),
     );
-    await expect(fetchOverpass(BBOX)).rejects.toThrow(/timed out on every mirror/);
+    await expect(fetchOverpass(BBOX)).rejects.toThrow(/free public API/);
   });
 
   it('does not retry on a 400 query error', async () => {
-    let calls = 0;
+    let kumiCalls = 0;
+    let mainCalls = 0;
     server.use(
-      http.post('https://overpass-api.de/api/interpreter', () => {
-        calls++;
+      http.post('https://overpass.kumi.systems/api/interpreter', () => {
+        kumiCalls++;
         return HttpResponse.text('bad query', { status: 400 });
       }),
-      http.post('https://overpass.kumi.systems/api/interpreter', () => {
-        calls++;
+      http.post('https://overpass-api.de/api/interpreter', () => {
+        mainCalls++;
         return HttpResponse.text('should not reach', { status: 200 });
       }),
     );
     await expect(fetchOverpass(BBOX)).rejects.toThrow(/400/);
-    expect(calls).toBe(1);
+    expect(kumiCalls).toBe(1);
+    expect(mainCalls).toBe(0);
   });
 
   it('disables mirror fallback when a single endpoint is provided', async () => {

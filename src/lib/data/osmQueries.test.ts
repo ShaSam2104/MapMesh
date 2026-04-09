@@ -67,6 +67,27 @@ describe('osmQueries', () => {
     expect(c({ waterway: 'dam' })).toBe('piers');
   });
 
+  it('classifies the widened grass predicates (forest, wood, golf, cemetery, scrub)', () => {
+    const c = (p: Record<string, string>) =>
+      classifyFeature({
+        type: 'Feature',
+        properties: p,
+        geometry: { type: 'Point', coordinates: [0, 0] },
+      });
+    expect(c({ landuse: 'forest' })).toBe('grass');
+    expect(c({ landuse: 'cemetery' })).toBe('grass');
+    expect(c({ landuse: 'allotments' })).toBe('grass');
+    expect(c({ natural: 'wood' })).toBe('grass');
+    expect(c({ natural: 'scrub' })).toBe('grass');
+    expect(c({ leisure: 'golf_course' })).toBe('grass');
+    expect(c({ leisure: 'nature_reserve' })).toBe('grass');
+  });
+
+  it('uses a 25 s server-side timeout to fail fast on overload', () => {
+    const q = buildOverpassQuery([72.85, 19.05, 72.95, 19.15]);
+    expect(q).toContain('[timeout:25]');
+  });
+
   it('ignores building=no and unknown tags', () => {
     expect(
       classifyFeature({
