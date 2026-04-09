@@ -82,14 +82,14 @@ describe('store', () => {
     expect(useStore.getState().theme).toBe('light');
   });
 
-  it('setTheme preserves non-color layer fields (visible / heightOffset)', () => {
+  it('setTheme preserves non-color layer fields (visible / heightOffsetMm)', () => {
     const { setTheme, toggleLayerVisible, setLayerHeightOffset } = useStore.getState();
     setTheme('dark');
     toggleLayerVisible('water'); // false
-    setLayerHeightOffset('roads', 2.5);
+    setLayerHeightOffset('roads', 0.8);
 
     setTheme('light');
     expect(useStore.getState().layers.water.visible).toBe(false);
-    expect(useStore.getState().layers.roads.heightOffsetMm).toBe(2.5);
+    expect(useStore.getState().layers.roads.heightOffsetMm).toBe(0.8);
   });
 });

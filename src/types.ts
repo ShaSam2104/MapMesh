@@ -45,7 +45,12 @@ export interface LayerConfig {
   visible: boolean;
   /** Merge this layer into the printed STL/3MF. */
   includeInExport: boolean;
-  /** +raised / −recessed relative to the terrain surface, in millimeters. */
+  /**
+   * Layer position above the plinth top in **print millimeters**
+   * (`1 world unit = 1 print mm`). For area / line layers this is the
+   * **bottom** of the slab; for `gpxPath` it is the bottom of the
+   * ribbon above the plinth.
+   */
   heightOffsetMm: number;
 }
 
@@ -82,7 +87,7 @@ export interface MeshState {
   /** Per-layer (non-plinth) geometries, used by FeatureLayer components. */
   layerGeometries: Partial<Record<LayerKey, BufferGeometry>>;
   /**
-   * Z-coordinate of the plinth's top surface in world units (meters).
+   * Z-coordinate of the plinth's top surface in **print millimeters**.
    * Used by the scene + exporter to lift layer geometries onto the plinth.
    */
   plinthTopZ?: number;

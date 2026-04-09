@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Feature, Polygon } from 'geojson';
-import { buildBuildings, extractHeightMeters } from './buildings';
+import {
+  buildBuildings,
+  extractHeightMeters,
+  MAX_BUILDING_HEIGHT_M,
+} from './buildings';
 
 const ORIGIN: [number, number] = [0, 0];
 
@@ -50,18 +54,17 @@ describe('buildBuildings', () => {
     expect(merged!.attributes.position.count).toBeGreaterThan(0);
   });
 
-  it('uses the fallback height when tags are missing', () => {
+  it('uses the fallback height when tags are missing (print mm)', () => {
     const features = [square(0, 0, 0.00005, { building: 'yes' })];
     const merged = buildBuildings(features, { origin: ORIGIN, fallbackHeightM: 8 });
     expect(merged).not.toBeNull();
     merged!.computeBoundingBox();
     const zSpan = merged!.boundingBox!.max.z - merged!.boundingBox!.min.z;
-    // 1 world unit = 1 real meter, with a constant ×6 visibility boost,
-    // so 8 m fallback → 8 × 6 = 48 units tall.
-    expect(zSpan).toBeCloseTo(48, 4);
+    // 8 m × 1 (exag) × 0.1 mm/m (print scale) = 0.8 mm print.
+    expect(zSpan).toBeCloseTo(0.8, 3);
   });
 
-  it('applies vertical exaggeration to building height', () => {
+  it('applies vertical exaggeration to building height (print mm)', () => {
     const features = [square(0, 0, 0.00005, { building: 'yes', height: '10' })];
     const merged = buildBuildings(features, {
       origin: ORIGIN,
@@ -70,8 +73,32 @@ describe('buildBuildings', () => {
     expect(merged).not.toBeNull();
     merged!.computeBoundingBox();
     const zSpan = merged!.boundingBox!.max.z - merged!.boundingBox!.min.z;
-    // 10 m × 6 (constant boost) × 3 (exaggeration) = 180 world units.
-    expect(zSpan).toBeCloseTo(180, 4);
+    // 10 m × 3 (exag) × 0.1 mm/m (print scale) = 3.0 mm print.
+    expect(zSpan).toBeCloseTo(3.0, 3);
+  });
+
+  it('scales a 100 m skyscraper proportionally (print mm)', () => {
+    const features = [square(0, 0, 0.00005, { building: 'yes', height: '100' })];
+    const merged = buildBuildings(features, { origin: ORIGIN });
+    expect(merged).not.toBeNull();
+    merged!.computeBoundingBox();
+    const zSpan = merged!.boundingBox!.max.z - merged!.boundingBox!.min.z;
+    // 100 m × 1 (exag) × 0.1 mm/m = 10.0 mm — proportional to the 200 mm
+    // plinth edge of a 2 km selection at 1:10000.
+    expect(zSpan).toBeCloseTo(10.0, 3);
+  });
+
+  it('clamps absurd OSM height tags to MAX_BUILDING_HEIGHT_M', () => {
+    // A broadcast tower mistagged as `building=yes` with height=9999 used
+    // to produce 5999 mm tall obelisks in the preview. Clamp to the
+    // real-world maximum so it prints at a sane height.
+    const features = [square(0, 0, 0.00005, { building: 'yes', height: '9999' })];
+    const merged = buildBuildings(features, { origin: ORIGIN });
+    expect(merged).not.toBeNull();
+    merged!.computeBoundingBox();
+    const zSpan = merged!.boundingBox!.max.z - merged!.boundingBox!.min.z;
+    // MAX_BUILDING_HEIGHT_M × 1 × 0.1 = 50 mm, not 999.9 mm.
+    expect(zSpan).toBeCloseTo(MAX_BUILDING_HEIGHT_M * 0.1, 3);
   });
 
   it('returns null for empty input', () => {

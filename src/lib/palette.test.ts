@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { LAYER_ICON, LAYER_LABEL, defaultColor, defaultLayers } from './palette';
+import {
+  LAYER_ICON,
+  LAYER_LABEL,
+  DEFAULT_HEIGHT_OFFSET_MM,
+  defaultColor,
+  defaultLayers,
+} from './palette';
 import { LAYER_ORDER } from '@/types';
 
 describe('palette', () => {
@@ -28,10 +34,24 @@ describe('palette', () => {
     expect(defaultColor('gpxPath', 'dark')).toBe('#00E5FF');
   });
 
-  it('recesses water and raises path / piers', () => {
+  it('seeds heightOffsetMm to 0 mm for area/line layers and a positive mm value for gpxPath', () => {
     const layers = defaultLayers('dark');
-    expect(layers.water.heightOffsetMm).toBeLessThan(0);
-    expect(layers.piers.heightOffsetMm).toBeGreaterThan(0);
-    expect(layers.gpxPath.heightOffsetMm).toBeGreaterThan(0);
+    // Area + line layers sit flush on the plinth top.
+    expect(layers.water.heightOffsetMm).toBe(0);
+    expect(layers.grass.heightOffsetMm).toBe(0);
+    expect(layers.sand.heightOffsetMm).toBe(0);
+    expect(layers.roads.heightOffsetMm).toBe(0);
+    expect(layers.piers.heightOffsetMm).toBe(0);
+    // GPX ribbon floats clearly above the surrounding slabs — strictly
+    // above the typical 1.2 mm slab thickness so it is always visible.
+    expect(layers.gpxPath.heightOffsetMm).toBeGreaterThan(1.2);
+  });
+
+  it('exposes the same defaults via DEFAULT_HEIGHT_OFFSET_MM', () => {
+    for (const key of LAYER_ORDER) {
+      expect(DEFAULT_HEIGHT_OFFSET_MM[key]).toBe(
+        defaultLayers('dark')[key].heightOffsetMm,
+      );
+    }
   });
 });

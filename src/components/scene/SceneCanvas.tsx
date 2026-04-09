@@ -15,11 +15,10 @@ import { EmptyState } from './EmptyState';
 /**
  * 3D scene.
  *
- * The render scale compresses the ~2000 world-unit (meter) plinth span to a
- * ~200-unit on-screen size, which fits comfortably in the default camera
- * view. Geometry in `src/lib/geometry/*` is authored in meter units.
+ * Geometry in `src/lib/geometry/*` is authored in **print millimeters**,
+ * so a 2 km selection produces a ~200 mm plinth that fits comfortably in
+ * the default camera view without any render-time rescaling.
  */
-const RENDER_SCALE = 0.1;
 
 /** Theme-aware canvas background color. Uses the same tokens as the UI. */
 const BG_DARK = '#0b0c0e';
@@ -45,12 +44,12 @@ export function SceneCanvas(): JSX.Element {
           castShadow={false}
         />
         <Environment preset={theme === 'dark' ? 'city' : 'apartment'} />
-        <group scale={[RENDER_SCALE, RENDER_SCALE, RENDER_SCALE]} rotation={[-Math.PI / 2, 0, 0]}>
+        <group rotation={[-Math.PI / 2, 0, 0]}>
           <TerrainMesh />
-          {/* Layer geometries are authored in "z=0 = terrain top" local
-              coordinates. The plinth top sits at `plinthTopZ` (meters) so we
-              lift the whole layer group up so roads / buildings / GPX rest
-              on the plinth surface instead of being buried inside it. */}
+          {/* Layer geometries are authored in "z=0 = plinth top" local
+              coordinates (mm). The plinth top sits at `plinthTopZ` (mm) so
+              we lift the whole layer group up so roads / buildings / GPX
+              rest on the plinth surface instead of being buried inside it. */}
           <group position={[0, 0, plinthTopZ]}>
             <Buildings />
             <Roads />

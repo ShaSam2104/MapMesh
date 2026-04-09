@@ -4,12 +4,13 @@ import {
   shapeAsGeoJson,
   shapeAsThreeShape,
   shapeVerticesMeters,
+  shapeVerticesMm,
 } from './shapes';
 
 const MUMBAI: [number, number] = [72.8777, 19.076];
 
 describe('shapes', () => {
-  it('square has 4 verts with expected extent', () => {
+  it('shapeVerticesMeters returns real-world meters for a 1 km square', () => {
     const verts = shapeVerticesMeters('square', 1, 0);
     expect(verts).toHaveLength(4);
     const xs = verts.map(([x]) => x);
@@ -18,7 +19,16 @@ describe('shapes', () => {
     expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(1000, 0);
   });
 
-  it('circle has 64 verts and area ≈ π r²', () => {
+  it('shapeVerticesMm collapses a 1 km square to a 100 mm print extent (1:10000 scale)', () => {
+    const verts = shapeVerticesMm('square', 1, 0);
+    expect(verts).toHaveLength(4);
+    const xs = verts.map(([x]) => x);
+    const ys = verts.map(([, y]) => y);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(100, 4);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(100, 4);
+  });
+
+  it('circle has 64 verts and area ≈ π r² (real-world meters, for GeoJSON)', () => {
     const verts = shapeVerticesMeters('circle', 2, 0);
     expect(verts).toHaveLength(64);
     const feature = shapeAsGeoJson('circle', MUMBAI, 2, 0);
@@ -43,9 +53,10 @@ describe('shapes', () => {
     expect(ring[0]).toEqual(ring[ring.length - 1]);
   });
 
-  it('shapeAsThreeShape extracts points matching the metric verts', () => {
-    const three = shapeAsThreeShape('hex', 1, 0);
-    const pts = three.extractPoints(6).shape;
-    expect(pts.length).toBeGreaterThanOrEqual(6);
+  it('shapeAsThreeShape returns a shape in print mm (2 km → 200 mm wide)', () => {
+    const three = shapeAsThreeShape('square', 2, 0);
+    const pts = three.extractPoints(1).shape;
+    const xs = pts.map((p) => p.x);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(200, 4);
   });
 });

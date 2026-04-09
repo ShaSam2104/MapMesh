@@ -56,6 +56,33 @@ describe('polygonToShapes', () => {
     expect(shapes[0].holes).toHaveLength(1);
   });
 
+  it('scales projected coords to print millimeters (1:10000)', () => {
+    // A 0.001° lng span is ~111 m at the equator → 11.1 mm print at 1:10000.
+    const f: Feature<Polygon> = {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0, 0],
+            [0.001, 0],
+            [0.001, 0.001],
+            [0, 0.001],
+            [0, 0],
+          ],
+        ],
+      },
+    };
+    const [shape] = polygonToShapes(f, ORIGIN);
+    const pts = shape.getPoints();
+    const xs = pts.map((p) => p.x);
+    const span = Math.max(...xs) - Math.min(...xs);
+    // ~111 m × 0.1 mm/m ≈ 11.1 mm.
+    expect(span).toBeGreaterThan(10);
+    expect(span).toBeLessThan(12);
+  });
+
   it('converts a multipolygon into multiple shapes', () => {
     const f: Feature<MultiPolygon> = {
       type: 'Feature',

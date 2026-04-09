@@ -31,16 +31,27 @@ const LIGHT_COLORS: ColorMap = {
   gpxPath: '#0097A7',
 };
 
-/** Height offset (mm) relative to the terrain surface, per layer. */
+/**
+ * Default height offset per layer in **print millimeters above the plinth
+ * top**.
+ *
+ * Convention: this is the **bottom** of the slab/strip. `0` means the layer
+ * sits flush on the plinth top and extrudes upward by its (chunky, ~1.0–1.2
+ * mm) thickness so it remains printable on a 0.4 mm FDM nozzle (≥ 0.8 mm
+ * minimum wall).
+ *
+ * `gpxPath` is sized to clear the surrounding area slabs so the route
+ * ribbon is always visible from above.
+ */
 export const DEFAULT_HEIGHT_OFFSET_MM: Record<LayerKey, number> = {
   base: 0,
   buildings: 0,
-  roads: 0.3,
-  water: -0.6,
+  roads: 0,
+  water: 0,
   grass: 0,
   sand: 0,
-  piers: 0.8,
-  gpxPath: 1.0,
+  piers: 0,
+  gpxPath: 2.5,
 };
 
 /** Lucide icon name per layer, used by LayerRow. */

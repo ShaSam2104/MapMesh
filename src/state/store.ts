@@ -99,7 +99,7 @@ export const useStore = create<StoreState>((set, get) => ({
     // Reseed layer colors from the palette for the new theme so the 3D
     // scene visually matches the theme (dark palette in dark mode, light
     // palette in light mode). Non-color per-layer fields (visible /
-    // includeInExport / heightOffsetMm) are preserved so user toggles
+    // includeInExport / heightOffset) are preserved so user toggles
     // carry over across theme swaps.
     set((s) => {
       const seeded = defaultLayers(theme);

@@ -9,11 +9,20 @@
  *   3. `building:levels` × 3 m
  *   4. default fallback (10 m)
  *
- * **Units:** this module follows the project-wide convention of
- * `1 world unit = 1 real meter`. The selection is `sizeKm * 1000` wide,
- * terrain elevations are set directly from meters, so a 10 m tall building
- * extrudes to 10 world units. Print-mm scaling is applied downstream at
- * export time, not here.
+ * **Units:** footprints are projected into **print millimeters** by
+ * `polygonToShapes` (via `PRINT_SCALE_MM_PER_M`), and the extrusion depth is
+ * also in print mm — `clamp(heightM, MAX_BUILDING_HEIGHT_M) × exaggeration × PRINT_SCALE_MM_PER_M`.
+ *
+ * There is **no** constant boost: at the 1:10000 print scale a 100 m
+ * skyscraper already reads at 10 mm print mm (× user exaggeration), which is
+ * the right proportion against the 200 mm plinth edge of a 2 km selection.
+ * Earlier versions of this builder applied a 6× boost that produced 240 mm
+ * needles for Mumbai towers, overflowing the Bambu X1 256 mm bed; see
+ * `CLAUDE.md` Golden Rule 6 + 7. The user-facing `exaggeration` slider (1×–3×)
+ * is the only lever for tuning vertical presence.
+ *
+ * Heights above `MAX_BUILDING_HEIGHT_M` are clamped to guard against
+ * erroneous OSM tags (e.g. `height=9999` for a stray mast).
  *
  * @module lib/geometry/buildings
  */
@@ -23,6 +32,7 @@ import { mergeBufferGeometries } from 'three-stdlib';
 import type { Feature, Polygon, MultiPolygon } from 'geojson';
 import type { LngLat } from '@/types';
 import { polygonToShapes } from './polygonToShape';
+import { PRINT_SCALE_MM_PER_M } from '@/lib/geo/printScale';
 import { tagged } from '@/lib/log/logger';
 
 const log = tagged('buildings');
@@ -30,15 +40,13 @@ const log = tagged('buildings');
 const DEFAULT_HEIGHT_M = 10;
 
 /**
- * Real-world building heights are tiny relative to the printed plinth
- * footprint — a 10 m building on a 2 km selection is 0.5% of the width
- * and reads as nothing from a normal preview camera, plus it falls below
- * the 0.8 mm minimum FDM wall after the export-time scale-down. We boost
- * every building's height by this multiplier so the city skyline is
- * visible in the preview *and* prints cleanly on a 0.4 mm nozzle. The
- * `exaggeration` slider applies on top of this constant.
+ * Hard ceiling for building height in real-world meters. OSM occasionally
+ * has nonsense height tags (`9999`, stray radio masts tagged as buildings,
+ * etc.) which, without clamping, would extrude into meters-tall print
+ * obelisks. 500 m covers the tallest real building on earth and rejects
+ * garbage upstream of the print scale.
  */
-const BUILDING_HEIGHT_BOOST = 6;
+export const MAX_BUILDING_HEIGHT_M = 500;
 
 export interface BuildBuildingsOptions {
   origin: LngLat;
@@ -61,16 +69,22 @@ export function buildBuildings(
   const exaggeration = options.exaggeration ?? 1;
   const geoms: THREE.BufferGeometry[] = [];
   let fallbackCount = 0;
+  let clampedCount = 0;
 
   for (const f of features) {
     if (!f.geometry) continue;
     if (f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon') continue;
 
-    const heightM = extractHeightMeters(f) ?? (++fallbackCount, fallback);
-    // 1 world unit = 1 real meter; the boost is a constant artistic
-    // multiplier so the skyline reads visibly (see BUILDING_HEIGHT_BOOST).
-    const depthWorld = heightM * BUILDING_HEIGHT_BOOST * exaggeration;
-    if (depthWorld <= 0) continue;
+    let heightM = extractHeightMeters(f) ?? (++fallbackCount, fallback);
+    if (heightM > MAX_BUILDING_HEIGHT_M) {
+      clampedCount++;
+      heightM = MAX_BUILDING_HEIGHT_M;
+    }
+    if (heightM <= 0) continue;
+    // Real meters → print mm. A 100 m building → 100 × 1 × 0.1 = 10 mm tall
+    // at exag=1. The user's exaggeration slider is the only vertical lever.
+    const depthMm = heightM * exaggeration * PRINT_SCALE_MM_PER_M;
+    if (depthMm <= 0) continue;
 
     const shapes = polygonToShapes(
       f as Feature<Polygon | MultiPolygon>,
@@ -78,7 +92,7 @@ export function buildBuildings(
     );
     for (const shape of shapes) {
       const g = new THREE.ExtrudeGeometry(shape, {
-        depth: depthWorld,
+        depth: depthMm,
         bevelEnabled: false,
       });
       geoms.push(g);
@@ -91,6 +105,7 @@ export function buildBuildings(
     features: features.length,
     extruded: geoms.length,
     fallbackCount,
+    clampedCount,
   });
 
   const merged = mergeBufferGeometries(geoms, false);

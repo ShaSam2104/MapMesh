@@ -49,11 +49,11 @@ export function LayerBody({ layerKey }: LayerBodyProps): JSX.Element {
             />
           </div>
           <Slider
-            label={isGpx ? 'Height above terrain' : 'Height offset'}
+            label={isGpx ? 'Height above plinth' : 'Height offset'}
             value={layer.heightOffsetMm}
             onChange={(v) => setOffset(layerKey, v)}
-            min={-3}
-            max={3}
+            min={isGpx ? 0 : -2}
+            max={isGpx ? 10 : 8}
             step={0.1}
             unit="mm"
           />

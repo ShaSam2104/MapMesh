@@ -10,13 +10,13 @@ describe('buildTerrainPlane', () => {
     expect(zRange.max - zRange.min).toBeCloseTo(0);
   });
 
-  it('output geometry is 2000 × 2000 mm for a 2 km selection', () => {
+  it('output geometry is 200 × 200 mm for a 2 km selection at 1:10000 scale', () => {
     const grid = flatGrid([0, 0, 1, 1], 32, 0);
     const { geometry } = buildTerrainPlane(grid, { sizeKm: 2, subdivisions: 16 });
     geometry.computeBoundingBox();
     const bb = geometry.boundingBox!;
-    expect(bb.max.x - bb.min.x).toBeCloseTo(2000);
-    expect(bb.max.y - bb.min.y).toBeCloseTo(2000);
+    expect(bb.max.x - bb.min.x).toBeCloseTo(200, 3);
+    expect(bb.max.y - bb.min.y).toBeCloseTo(200, 3);
   });
 
   it('a ramp elevation grid produces a nonzero zRange and correct mean centering', () => {

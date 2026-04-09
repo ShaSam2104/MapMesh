@@ -1,11 +1,14 @@
 /**
  * Selection shape builders.
  *
- * For each shape (square, circle, hex) we emit two representations:
+ * For each shape (square, circle, hex) we emit:
  *   - a GeoJSON Feature<Polygon> (used by turf for clipping + by the map overlay)
- *   - a `THREE.Shape` (used for 3D extrusion)
+ *   - a `THREE.Shape` (used for 3D extrusion — in **print millimeters**)
  *
- * Sizes are in **kilometers** on the physical ground, not in degrees.
+ * Sizes are in **kilometers** on the physical ground, not in degrees. The
+ * metric vertex helper returns real-world meters; the print-mm helper
+ * multiplies by `PRINT_SCALE_MM_PER_M` so a 2 km selection becomes a
+ * 200 mm cross-section suitable for a Bambu FDM build plate.
  *
  * @module lib/geo/shapes
  */
@@ -15,6 +18,7 @@ import type { Feature, Polygon } from 'geojson';
 import { polygon as turfPolygon } from '@turf/turf';
 import type { LngLat, SelectionShape } from '@/types';
 import { localMetersToLngLat } from './projection';
+import { PRINT_SCALE_MM_PER_M } from './printScale';
 
 const CIRCLE_SEGMENTS = 64;
 
@@ -78,15 +82,32 @@ export function shapeAsGeoJson(
 }
 
 /**
- * Returns the selection shape as a `THREE.Shape`. Used as the cross-section
- * for the plinth extrusion and for any per-layer clipping fills.
+ * Returns the metric vertices scaled to **print millimeters**. Multiplies
+ * `shapeVerticesMeters` by `PRINT_SCALE_MM_PER_M` so downstream builders
+ * (plinth, terrain, clip fills) work in the same mm-space as every other
+ * `src/lib/geometry/*` module.
+ */
+export function shapeVerticesMm(
+  shape: SelectionShape,
+  sizeKm: number,
+  rotationDeg: number,
+): Array<[number, number]> {
+  return shapeVerticesMeters(shape, sizeKm, rotationDeg).map(
+    ([x, y]) => [x * PRINT_SCALE_MM_PER_M, y * PRINT_SCALE_MM_PER_M] as [number, number],
+  );
+}
+
+/**
+ * Returns the selection shape as a `THREE.Shape` in **print millimeters**.
+ * Used as the cross-section for the plinth extrusion and for any
+ * per-layer clipping fills — everything downstream is in print mm.
  */
 export function shapeAsThreeShape(
   shape: SelectionShape,
   sizeKm: number,
   rotationDeg: number,
 ): THREE.Shape {
-  const verts = shapeVerticesMeters(shape, sizeKm, rotationDeg);
+  const verts = shapeVerticesMm(shape, sizeKm, rotationDeg);
   const three = new THREE.Shape();
   three.moveTo(verts[0][0], verts[0][1]);
   for (let i = 1; i < verts.length; i++) three.lineTo(verts[i][0], verts[i][1]);

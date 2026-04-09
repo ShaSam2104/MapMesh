@@ -78,14 +78,15 @@ export function useGenerateMesh(): () => Promise<void> {
         });
       }
 
-      // Roads: line strip + layer offset from store. We pass the selection
-      // polygon as a clip shape so road segments are trimmed at the plinth
-      // edge instead of dangling out into open space.
+      // Roads: buffered line strip clipped to the selection polygon so
+      // segments are trimmed at the plinth edge instead of dangling out
+      // into open space. widthMeters is real-world meters (turf.buffer
+      // input); everything downstream is in print mm.
       if (classified.roads) {
         layerGeometries.roads = buildLineStrip(classified.roads, {
           origin,
-          widthMeters: 4,
-          heightOffset: layers.roads.heightOffsetMm,
+          widthMeters: 12,
+          heightOffsetMm: layers.roads.heightOffsetMm,
           clipShape: shapePoly,
         });
       }
@@ -95,7 +96,7 @@ export function useGenerateMesh(): () => Promise<void> {
         const clipped = clipPolygonsToShape(classified.water, shapePoly);
         layerGeometries.water = buildAreaSlab(clipped, {
           origin,
-          heightOffset: layers.water.heightOffsetMm,
+          heightOffsetMm: layers.water.heightOffsetMm,
         });
       }
 
@@ -104,7 +105,7 @@ export function useGenerateMesh(): () => Promise<void> {
         const clipped = clipPolygonsToShape(classified.grass, shapePoly);
         layerGeometries.grass = buildAreaSlab(clipped, {
           origin,
-          heightOffset: layers.grass.heightOffsetMm,
+          heightOffsetMm: layers.grass.heightOffsetMm,
         });
       }
 
@@ -113,7 +114,7 @@ export function useGenerateMesh(): () => Promise<void> {
         const clipped = clipPolygonsToShape(classified.sand, shapePoly);
         layerGeometries.sand = buildAreaSlab(clipped, {
           origin,
-          heightOffset: layers.sand.heightOffsetMm,
+          heightOffsetMm: layers.sand.heightOffsetMm,
         });
       }
 
@@ -121,20 +122,21 @@ export function useGenerateMesh(): () => Promise<void> {
       if (classified.piers) {
         layerGeometries.piers = buildLineStrip(classified.piers, {
           origin,
-          widthMeters: 3,
-          thickness: 0.8,
-          heightOffset: layers.piers.heightOffsetMm,
+          widthMeters: 8,
+          heightOffsetMm: layers.piers.heightOffsetMm,
           clipShape: shapePoly,
         });
       }
 
-      // GPX tube (optional)
+      // GPX ribbon (optional). Same buffered-slab pipeline as Roads, so
+      // the result is watertight. We pass the selection polygon as a
+      // clip shape so a Strava track that wanders outside the plinth
+      // gets trimmed instead of flying off into space.
       if (gpx) {
         layerGeometries.gpxPath = buildGpxTube(gpx.geojson, {
           origin,
-          grid,
-          exaggeration,
-          heightAboveTerrain: layers.gpxPath.heightOffsetMm,
+          heightOffsetMm: layers.gpxPath.heightOffsetMm,
+          clipShape: shapePoly,
         });
       }
 

@@ -4,10 +4,10 @@
  * Constructs a `THREE.PlaneGeometry` and displaces its vertices by sampling
  * a terrarium elevation grid.
  *
- * **Units:** the output geometry uses "print mm" as its unit where 1 unit =
- * 1 mm of the final printed model. The selection edge-length in km is
- * therefore the same number in mm (e.g. a 2 km selection → 2000 mm edge).
- * The scene camera scales this down to visual units.
+ * **Units:** the output geometry is in **print millimeters**. The selection
+ * edge length in km is scaled by `PRINT_SCALE_MM_PER_M` so a 2 km
+ * selection becomes a 200 mm square, and terrain relief is scaled by the
+ * same factor so a 300 m elevation range becomes a 30 mm Z span.
  *
  * @module lib/geometry/terrainPlane
  */
@@ -15,6 +15,7 @@
 import * as THREE from 'three';
 import type { ElevationGrid } from '@/lib/data/terrarium';
 import { sampleElevation } from '@/lib/data/heightSampler';
+import { PRINT_SCALE_MM_PER_M } from '@/lib/geo/printScale';
 import { tagged } from '@/lib/log/logger';
 import { time } from '@/lib/log/timing';
 
@@ -31,13 +32,13 @@ export interface BuildTerrainOptions {
 
 export interface TerrainBuildResult {
   geometry: THREE.BufferGeometry;
-  /** Min/max Z (post-exaggeration) in mm, relative to the mean elevation. */
+  /** Min/max Z (post-exaggeration) in **print millimeters**, relative to the mean elevation. */
   zRange: { min: number; max: number };
 }
 
 /**
  * Builds a displaced plane geometry for the terrain top surface. The plane
- * is centered on (0, 0) in mm units and lies in the XY plane with Z up.
+ * is centered on (0, 0) in **print mm** and lies in the XY plane with Z up.
  */
 export function buildTerrainPlane(
   grid: ElevationGrid,
@@ -46,7 +47,8 @@ export function buildTerrainPlane(
   const done = time(log, 'buildTerrainPlane');
   const subdivisions = options.subdivisions ?? 180;
   const exaggeration = options.exaggeration ?? 1;
-  const sizeMm = options.sizeKm * 1000;
+  // 1 km on the ground → 100 print mm at the default 1:10000 scale.
+  const sizeMm = options.sizeKm * 1000 * PRINT_SCALE_MM_PER_M;
 
   const geometry = new THREE.PlaneGeometry(
     sizeMm,
@@ -70,8 +72,9 @@ export function buildTerrainPlane(
     const sampleLng = minLng + u * (maxLng - minLng);
     const sampleLat = minLat + v * (maxLat - minLat);
     const elevationM = sampleElevation(grid, sampleLng, sampleLat);
-    // Exaggerate around the mean so the relief reads in print.
-    const relMm = (elevationM - meanElev) * exaggeration;
+    // Exaggerate around the mean, then scale real meters → print mm.
+    const relMm =
+      (elevationM - meanElev) * exaggeration * PRINT_SCALE_MM_PER_M;
     pos.setZ(i, relMm);
     if (relMm < zMin) zMin = relMm;
     if (relMm > zMax) zMax = relMm;
@@ -81,8 +84,8 @@ export function buildTerrainPlane(
   geometry.computeVertexNormals();
   log.info('terrain built', {
     subdivisions,
-    zMin: Math.round(zMin),
-    zMax: Math.round(zMax),
+    zMin: Number(zMin.toFixed(2)),
+    zMax: Number(zMax.toFixed(2)),
   });
   done();
   return { geometry, zRange: { min: zMin, max: zMax } };

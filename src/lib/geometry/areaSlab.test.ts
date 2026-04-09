@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Feature, Polygon } from 'geojson';
-import { buildAreaSlab } from './areaSlab';
+import { buildAreaSlab, DEFAULT_SLAB_THICKNESS_MM } from './areaSlab';
 
 function square(): Feature<Polygon> {
   return {
@@ -23,28 +23,47 @@ function square(): Feature<Polygon> {
 
 describe('buildAreaSlab', () => {
   it('returns null for empty features', () => {
-    expect(buildAreaSlab([], { origin: [0, 0], heightOffset: 0 })).toBeNull();
+    expect(buildAreaSlab([], { origin: [0, 0], heightOffsetMm: 0 })).toBeNull();
   });
 
-  it('builds a merged slab for one polygon with correct thickness', () => {
+  it('builds a merged slab whose z-span matches the requested thicknessMm', () => {
     const g = buildAreaSlab([square()], {
       origin: [0, 0],
-      heightOffset: 0,
-      thickness: 0.5,
+      heightOffsetMm: 0,
+      thicknessMm: 1.5,
     });
     expect(g).not.toBeNull();
     g!.computeBoundingBox();
     const zSpan = g!.boundingBox!.max.z - g!.boundingBox!.min.z;
-    expect(zSpan).toBeCloseTo(0.5, 3);
+    expect(zSpan).toBeCloseTo(1.5, 3);
   });
 
-  it('honors negative heightOffset (recessed water)', () => {
+  it('uses the printable DEFAULT_SLAB_THICKNESS_MM when thicknessMm is omitted', () => {
+    const g = buildAreaSlab([square()], { origin: [0, 0], heightOffsetMm: 0 });
+    g!.computeBoundingBox();
+    const zSpan = g!.boundingBox!.max.z - g!.boundingBox!.min.z;
+    expect(zSpan).toBeCloseTo(DEFAULT_SLAB_THICKNESS_MM, 3);
+  });
+
+  it('positions the slab BOTTOM at heightOffsetMm (top at heightOffsetMm+thicknessMm)', () => {
     const g = buildAreaSlab([square()], {
       origin: [0, 0],
-      heightOffset: -0.6,
-      thickness: 0.4,
+      heightOffsetMm: 0.5,
+      thicknessMm: 1.0,
     });
     g!.computeBoundingBox();
-    expect(g!.boundingBox!.max.z).toBeCloseTo(-0.6, 3);
+    expect(g!.boundingBox!.min.z).toBeCloseTo(0.5, 3);
+    expect(g!.boundingBox!.max.z).toBeCloseTo(1.5, 3);
+  });
+
+  it('honors negative heightOffsetMm by sinking the slab partially below z=0', () => {
+    const g = buildAreaSlab([square()], {
+      origin: [0, 0],
+      heightOffsetMm: -0.5,
+      thicknessMm: 1.2,
+    });
+    g!.computeBoundingBox();
+    expect(g!.boundingBox!.min.z).toBeCloseTo(-0.5, 3);
+    expect(g!.boundingBox!.max.z).toBeCloseTo(0.7, 3);
   });
 });
