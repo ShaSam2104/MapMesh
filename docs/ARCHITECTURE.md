@@ -16,14 +16,15 @@
              ▼
 ┌─────────────────────────────────────────────────┐
 │  src/hooks/         (orchestration)             │
-│    useGenerateMesh, useGeolocation, useTheme    │
+│    useGenerateMesh, useAutoRebuild,             │
+│    useGeolocation, useTheme                     │
 └─────────────────────────────────────────────────┘
              │
              ▼
 ┌─────────────────────────────────────────────────┐
 │  src/lib/    framework-free TypeScript           │
 │    geo/ data/ geometry/ manifold/ exporters/    │
-│    log/ palette.ts                              │
+│    fonts/ log/ palette.ts                       │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -47,9 +48,14 @@ The store never stores `HTMLElement`, `Map` instances, or other non-serializable
 
 ## The Pipeline boundary
 
-The generation pipeline is a chain of pure functions in `src/lib/` orchestrated by `src/hooks/useGenerateMesh.ts`. It takes the selection + elevation grid + OSM GeoJSON and returns `{ plinthManifold, plinthGeometry, layerGeometries }`.
+The generation pipeline is a chain of pure functions in `src/lib/` orchestrated by `src/hooks/useGenerateMesh.ts`. It is split into two phases so slider edits don't re-fetch the network:
 
-See [`PIPELINE.md`](PIPELINE.md) for the full diagram.
+1. **`ensureRawData(selection)`** — fetches Terrarium + Overpass (or reads `mesh.rawCache` if the selection fingerprint matches). Returns `{ fingerprint, grid, classified, gpxGeojson }`.
+2. **`rebuildFromRaw(raw, selection, layers, gpx, textLabels)`** — pure, synchronous-ish. Runs classify → clip → build layers → compute flange specs → build plinth (with flanges) → resolve font buffers → build + place text glyph geometries → commit. Returns `{ plinthManifold, plinthGeometry, layerGeometries, textLabelGeometries, plinthTopZ }`.
+
+`src/hooks/useAutoRebuild.ts` mounts once at the app root and debounces `rebuild()` on changes to rebuild-affecting fields (base thickness, exaggeration, layer widths/offsets/heightScale, text labels, gpx). Colour / visibility / export toggles are skipped because the scene reads them directly from store selectors.
+
+See [`PIPELINE.md`](PIPELINE.md) for the full diagram, and [`FONTS.md`](FONTS.md) for the text-label branch of the pipeline.
 
 ## Shopify / Medusa future-proofing
 

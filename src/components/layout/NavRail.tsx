@@ -1,8 +1,15 @@
-import { Map as MapIcon, Box, Palette, Download, type LucideIcon } from 'lucide-react';
+import {
+  Map as MapIcon,
+  Box,
+  Palette,
+  Download,
+  Type,
+  type LucideIcon,
+} from 'lucide-react';
 
 export interface NavRailProps {
-  activeTab: 'shape' | 'style' | 'path' | 'export';
-  onSelect: (tab: 'shape' | 'style' | 'path' | 'export') => void;
+  activeTab: 'shape' | 'style' | 'path' | 'text' | 'export';
+  onSelect: (tab: 'shape' | 'style' | 'path' | 'text' | 'export') => void;
 }
 
 export function NavRail({ activeTab, onSelect }: NavRailProps): JSX.Element {
@@ -14,6 +21,7 @@ export function NavRail({ activeTab, onSelect }: NavRailProps): JSX.Element {
     { key: 'shape', label: 'Shape', Icon: MapIcon },
     { key: 'style', label: 'Style', Icon: Palette },
     { key: 'path', label: 'Path', Icon: Box },
+    { key: 'text', label: 'Text', Icon: Type },
     { key: 'export', label: 'Export', Icon: Download },
   ];
 

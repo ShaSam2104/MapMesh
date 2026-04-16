@@ -54,6 +54,21 @@ export const DEFAULT_HEIGHT_OFFSET_MM: Record<LayerKey, number> = {
   gpxPath: 2.5,
 };
 
+/**
+ * Default line half-width in **real-world meters** for the three layers
+ * that go through `buildLineStrip` (turf.buffer). Kept in meters because
+ * that is exactly what turf expects; the geometry pipeline converts to
+ * print mm internally.
+ */
+export const DEFAULT_WIDTH_METERS: Partial<Record<LayerKey, number>> = {
+  roads: 6,
+  piers: 4,
+  gpxPath: 3,
+};
+
+/** Default building extrusion scale. */
+export const DEFAULT_BUILDING_HEIGHT_SCALE = 1;
+
 /** Lucide icon name per layer, used by LayerRow. */
 export const LAYER_ICON: Record<LayerKey, string> = {
   base: 'Box',
@@ -97,6 +112,12 @@ export function defaultLayers(theme: Theme): Layers {
       visible: true,
       includeInExport: true,
       heightOffsetMm: DEFAULT_HEIGHT_OFFSET_MM[key],
+      ...(DEFAULT_WIDTH_METERS[key] !== undefined
+        ? { widthMeters: DEFAULT_WIDTH_METERS[key] }
+        : {}),
+      ...(key === 'buildings'
+        ? { heightScale: DEFAULT_BUILDING_HEIGHT_SCALE }
+        : {}),
     };
   }
   return result;

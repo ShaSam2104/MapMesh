@@ -54,6 +54,13 @@ export interface BuildBuildingsOptions {
   exaggeration?: number;
   /** Fallback height in meters when tags are missing. */
   fallbackHeightM?: number;
+  /**
+   * Per-feature building height multiplier — the user-controlled "make
+   * buildings taller or shorter" knob. Applied on top of `exaggeration`.
+   * Default 1 (no change). Clamping to a sane 0.3–3 range is the caller's
+   * responsibility; values are trusted here.
+   */
+  heightScale?: number;
 }
 
 /**
@@ -67,6 +74,7 @@ export function buildBuildings(
 
   const fallback = options.fallbackHeightM ?? DEFAULT_HEIGHT_M;
   const exaggeration = options.exaggeration ?? 1;
+  const heightScale = options.heightScale ?? 1;
   const geoms: THREE.BufferGeometry[] = [];
   let fallbackCount = 0;
   let clampedCount = 0;
@@ -81,9 +89,10 @@ export function buildBuildings(
       heightM = MAX_BUILDING_HEIGHT_M;
     }
     if (heightM <= 0) continue;
-    // Real meters → print mm. A 100 m building → 100 × 1 × 0.1 = 10 mm tall
-    // at exag=1. The user's exaggeration slider is the only vertical lever.
-    const depthMm = heightM * exaggeration * PRINT_SCALE_MM_PER_M;
+    // Real meters → print mm. A 100 m building → 100 × 1 × 1 × 0.1 = 10 mm
+    // at exag=1, heightScale=1. `exaggeration` is the global vertical
+    // multiplier; `heightScale` is the per-layer user knob in the Style tab.
+    const depthMm = heightM * exaggeration * heightScale * PRINT_SCALE_MM_PER_M;
     if (depthMm <= 0) continue;
 
     const shapes = polygonToShapes(

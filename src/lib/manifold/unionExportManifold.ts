@@ -104,6 +104,31 @@ export async function unionExportManifold(
     }
   }
 
+  // Text label geometries are already authored in absolute mm world
+  // coordinates (placed on the flange outer face by
+  // `placeTextOnFlange`), so they go through the same pipeline but
+  // without the `translate([0,0,topZ])` lift.
+  const textGeoms = mesh.textLabelGeometries ?? {};
+  for (const [id, geom] of Object.entries(textGeoms)) {
+    try {
+      const m = await fromBufferGeometry(geom);
+      if (m.numTri() === 0) {
+        log.warn('text label manifold has zero triangles, skipping', { id });
+        skipped++;
+        continue;
+      }
+      layerManifolds.push(m);
+      added++;
+      await tick();
+    } catch (err) {
+      log.error('text label → manifold conversion failed, skipping', {
+        id,
+        err: err instanceof Error ? err.message : String(err),
+      });
+      skipped++;
+    }
+  }
+
   // Fast path: no layers to union in.
   if (layerManifolds.length === 0) {
     log.info('export manifold ready (plinth only)', {

@@ -9,8 +9,10 @@ import { Grass } from './Grass';
 import { Sand } from './Sand';
 import { Piers } from './Piers';
 import { GpxPath } from './GpxPath';
+import { TextLabels } from './TextLabels';
 import { GridFloor } from './GridFloor';
 import { EmptyState } from './EmptyState';
+import { ProgressOverlay } from './ProgressOverlay';
 
 /**
  * 3D scene.
@@ -46,6 +48,11 @@ export function SceneCanvas(): JSX.Element {
         <Environment preset={theme === 'dark' ? 'city' : 'apartment'} />
         <group rotation={[-Math.PI / 2, 0, 0]}>
           <TerrainMesh />
+          {/* Text label geometries are pre-placed in absolute print-mm
+              world coordinates on their flange outer face, so they sit
+              at the same transform level as the plinth / terrain — not
+              inside the `plinthTopZ` layer lift group. */}
+          <TextLabels />
           {/* Layer geometries are authored in "z=0 = plinth top" local
               coordinates (mm). The plinth top sits at `plinthTopZ` (mm) so
               we lift the whole layer group up so roads / buildings / GPX
@@ -77,6 +84,7 @@ export function SceneCanvas(): JSX.Element {
           <EmptyState />
         </div>
       )}
+      <ProgressOverlay />
     </div>
   );
 }

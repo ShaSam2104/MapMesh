@@ -14,7 +14,22 @@ describe('buildExportGeometry', () => {
   it('returns null when there is no plinth manifold', async () => {
     const layers = defaultLayers('dark');
     const result = await buildExportGeometry({
-      mesh: { status: 'idle', layerGeometries: {} },
+      mesh: { status: 'idle', layerGeometries: {}, textLabelGeometries: {} },
+      layers,
+    });
+    expect(result).toBeNull();
+  });
+
+  it('returns null even when text label geometries are present without a plinth', async () => {
+    // Regression: unionExportManifold must early-out on missing plinth
+    // before touching `textLabelGeometries`.
+    const layers = defaultLayers('dark');
+    const result = await buildExportGeometry({
+      mesh: {
+        status: 'idle',
+        layerGeometries: {},
+        textLabelGeometries: { abc: {} as unknown as never },
+      },
       layers,
     });
     expect(result).toBeNull();

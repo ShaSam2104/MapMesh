@@ -15,12 +15,19 @@ import type {
   LayerKey,
   Layers,
   MeshState,
+  RawCache,
   Selection,
   SelectionShape,
+  TextLabel,
   Theme,
   View,
 } from '@/types';
-import { defaultLayers, DEFAULT_HEIGHT_OFFSET_MM } from '@/lib/palette';
+import {
+  defaultLayers,
+  DEFAULT_HEIGHT_OFFSET_MM,
+  DEFAULT_WIDTH_METERS,
+  DEFAULT_BUILDING_HEIGHT_SCALE,
+} from '@/lib/palette';
 import { tagged } from '@/lib/log/logger';
 
 const log = tagged('store');
@@ -44,6 +51,41 @@ function readInitialTheme(): Theme {
 
 const INITIAL_THEME: Theme = readInitialTheme();
 
+/** Builds a stable fingerprint for the data-fetch cache. */
+export function rawCacheFingerprint(sel: Selection): string {
+  return [
+    sel.center[0].toFixed(6),
+    sel.center[1].toFixed(6),
+    sel.shape,
+    sel.sizeKm.toFixed(3),
+    sel.rotationDeg.toFixed(2),
+  ].join('|');
+}
+
+function defaultTextLabel(side: TextLabel['side'] = 'north'): TextLabel {
+  return {
+    id: cryptoRandomId(),
+    content: 'Label',
+    fontFamily: 'Roboto',
+    fontVariant: 'regular',
+    color: '#E8E6DF',
+    side,
+    letterHeightMm: 8,
+    extrusionMm: 1.2,
+    alignment: 'center',
+    offsetMm: 0,
+  };
+}
+
+function cryptoRandomId(): string {
+  // Use globalThis.crypto when available (browser + node 19+), fall back
+  // to a timestamp/random composite for the rare test environment that
+  // lacks it.
+  const c = (globalThis as unknown as { crypto?: { randomUUID?: () => string } }).crypto;
+  if (c?.randomUUID) return c.randomUUID();
+  return `tl-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export interface StoreState {
   theme: Theme;
   view: View;
@@ -51,6 +93,7 @@ export interface StoreState {
   layers: Layers;
   gpx: GpxData | null;
   mesh: MeshState;
+  textLabels: TextLabel[];
 
   // --- actions ---
   setTheme: (t: Theme) => void;
@@ -68,12 +111,29 @@ export interface StoreState {
   toggleLayerVisible: (key: LayerKey) => void;
   toggleLayerExport: (key: LayerKey) => void;
   setLayerHeightOffset: (key: LayerKey, mm: number) => void;
+  setLayerWidthMeters: (key: LayerKey, meters: number) => void;
+  setLayerHeightScale: (key: LayerKey, scale: number) => void;
   resetLayerDefaults: (key: LayerKey) => void;
 
   setGpx: (gpx: GpxData | null) => void;
 
   setMeshStatus: (status: MeshState['status'], error?: string) => void;
   setMeshResult: (patch: Partial<MeshState>) => void;
+  /**
+   * Updates the live progress payload shown in the scene overlay +
+   * header. Pass `null` to clear it (e.g. on success or error).
+   */
+  setMeshProgress: (phase: string | null, detail?: string) => void;
+
+  /** Cache the raw fetched data so rebuilds skip Overpass + Terrarium. */
+  setRawCache: (cache: RawCache) => void;
+  /** Drop the cached raw data — called when the fetch fingerprint changes. */
+  clearRawCache: () => void;
+
+  // Text label CRUD
+  addTextLabel: (side?: TextLabel['side']) => void;
+  updateTextLabel: (id: string, patch: Partial<TextLabel>) => void;
+  removeTextLabel: (id: string) => void;
 }
 
 export const useStore = create<StoreState>((set, get) => ({
@@ -92,15 +152,17 @@ export const useStore = create<StoreState>((set, get) => ({
   mesh: {
     status: 'idle',
     layerGeometries: {},
+    textLabelGeometries: {},
   },
+  textLabels: [],
 
   setTheme: (theme) => {
     log.debug('setTheme', { theme });
     // Reseed layer colors from the palette for the new theme so the 3D
     // scene visually matches the theme (dark palette in dark mode, light
     // palette in light mode). Non-color per-layer fields (visible /
-    // includeInExport / heightOffset) are preserved so user toggles
-    // carry over across theme swaps.
+    // includeInExport / heightOffset / widthMeters / heightScale) are
+    // preserved so user edits carry over across theme swaps.
     set((s) => {
       const seeded = defaultLayers(theme);
       const layers = {} as Layers;
@@ -138,6 +200,10 @@ export const useStore = create<StoreState>((set, get) => ({
     set((s) => updateLayer(s, key, { includeInExport: !s.layers[key].includeInExport })),
   setLayerHeightOffset: (key, mm) =>
     set((s) => updateLayer(s, key, { heightOffsetMm: mm })),
+  setLayerWidthMeters: (key, meters) =>
+    set((s) => updateLayer(s, key, { widthMeters: clamp(meters, 0.5, 60) })),
+  setLayerHeightScale: (key, scale) =>
+    set((s) => updateLayer(s, key, { heightScale: clamp(scale, 0.3, 3) })),
   resetLayerDefaults: (key) =>
     set((s) => {
       const theme = s.theme;
@@ -147,6 +213,8 @@ export const useStore = create<StoreState>((set, get) => ({
         visible: true,
         includeInExport: true,
         heightOffsetMm: DEFAULT_HEIGHT_OFFSET_MM[key],
+        widthMeters: DEFAULT_WIDTH_METERS[key],
+        heightScale: key === 'buildings' ? DEFAULT_BUILDING_HEIGHT_SCALE : undefined,
       });
     }),
 
@@ -164,10 +232,77 @@ export const useStore = create<StoreState>((set, get) => ({
     set((s) => ({ mesh: { ...s.mesh, ...patch } }));
     void get; // keep get in scope for future action composition
   },
+
+  setMeshProgress: (phase, detail) => {
+    if (phase === null) {
+      set((s) => {
+        if (!s.mesh.progress) return {};
+        const { progress: _omit, ...rest } = s.mesh;
+        void _omit;
+        return { mesh: { ...rest } };
+      });
+      return;
+    }
+    const next: MeshState['progress'] = {
+      phase,
+      detail,
+      startedAt: Date.now(),
+    };
+    log.debug('mesh progress', next);
+    set((s) => ({ mesh: { ...s.mesh, progress: next } }));
+  },
+
+  setRawCache: (cache) => {
+    log.debug('setRawCache', { fp: cache.fingerprint });
+    set((s) => ({ mesh: { ...s.mesh, rawCache: cache } }));
+  },
+  clearRawCache: () => {
+    log.debug('clearRawCache');
+    set((s) => {
+      if (!s.mesh.rawCache) return {};
+      const { rawCache: _omit, ...rest } = s.mesh;
+      void _omit;
+      return { mesh: { ...rest } };
+    });
+  },
+
+  addTextLabel: (side) => {
+    const label = defaultTextLabel(side);
+    log.info('addTextLabel', { id: label.id, side: label.side });
+    set((s) => ({ textLabels: [...s.textLabels, label] }));
+  },
+  updateTextLabel: (id, patch) => {
+    set((s) => ({
+      textLabels: s.textLabels.map((l) =>
+        l.id === id ? clampTextLabel({ ...l, ...patch }) : l,
+      ),
+    }));
+  },
+  removeTextLabel: (id) => {
+    log.info('removeTextLabel', { id });
+    set((s) => {
+      const textLabels = s.textLabels.filter((l) => l.id !== id);
+      // Also drop any orphaned geometry so the scene stops rendering it.
+      const { [id]: _removed, ...rest } = s.mesh.textLabelGeometries;
+      void _removed;
+      return {
+        textLabels,
+        mesh: { ...s.mesh, textLabelGeometries: rest },
+      };
+    });
+  },
 }));
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
+}
+
+function clampTextLabel(l: TextLabel): TextLabel {
+  return {
+    ...l,
+    letterHeightMm: clamp(l.letterHeightMm, 3, 30),
+    extrusionMm: clamp(l.extrusionMm, 0.6, 5),
+  };
 }
 
 function updateLayer(

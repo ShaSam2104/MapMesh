@@ -24,6 +24,7 @@ import type { BufferGeometry } from 'three';
 import type { Manifold } from 'manifold-3d';
 import type { SelectionShape } from '@/types';
 import type { ElevationGrid } from '@/lib/data/terrarium';
+import type { FlangeSpec } from '@/lib/geometry/flangeSpecs';
 import { shapeVerticesMm } from '@/lib/geo/shapes';
 import { PRINT_SCALE_MM_PER_M } from '@/lib/geo/printScale';
 import { tagged } from '@/lib/log/logger';
@@ -44,6 +45,34 @@ export interface BuildPlinthOptions {
   subdivisions?: number;
   /** The elevation grid covering the selection bbox. */
   grid: ElevationGrid;
+  /**
+   * Optional flange tabs to union into the plinth cross-section before
+   * extrusion. Each tab is a CCW polygon in **absolute mm world
+   * coordinates** (post rotation) produced by `computeFlangeSpecs`. The
+   * union happens in 2D via manifold-3d's `CrossSection.union`, so the
+   * final extruded prism remains a single watertight solid regardless of
+   * how many flanges are present.
+   */
+  flanges?: FlangeSpec[];
+}
+
+/**
+ * Returns the plinth's top Z coordinate in **print mm** given the raw
+ * elevation grid and vertical exaggeration. Exposed so the
+ * auto-rebuild path can compute flange outer-face Z centers without
+ * building the plinth first.
+ *
+ * Must stay in lock-step with the same calculation in
+ * `buildWatertightPlinth` below — there is one test that asserts this.
+ */
+export function computePlinthTopZ(
+  grid: { min: number; max: number },
+  exaggeration = 1,
+): number {
+  const meanElev = (grid.min + grid.max) / 2;
+  const topOffsetMm =
+    Math.max(0, (grid.max - meanElev) * exaggeration) * PRINT_SCALE_MM_PER_M;
+  return Math.max(1, topOffsetMm);
 }
 
 export interface PlinthResult {
@@ -75,21 +104,31 @@ export async function buildWatertightPlinth(
     options.sizeKm,
     options.rotationDeg,
   );
-  const cs = new CrossSection([verts.map(([x, y]) => [x, y] as [number, number])]);
+  let cs = new CrossSection([verts.map(([x, y]) => [x, y] as [number, number])]);
+
+  // Union any flange tabs into the cross-section BEFORE extrusion so the
+  // final prism is a single watertight solid (no multiple disconnected
+  // shells). Each flange tab is already in absolute mm world coordinates
+  // (post rotation) — `computeFlangeSpecs` handles that transform.
+  const flanges = options.flanges ?? [];
+  if (flanges.length > 0) {
+    const tabSections = flanges.map(
+      (f) =>
+        new CrossSection([
+          f.rectVerts.map(([x, y]) => [x, y] as [number, number]),
+        ]),
+    );
+    cs = CrossSection.union([cs, ...tabSections]);
+    log.debug('unioned flange tabs', { count: flanges.length });
+  }
 
   const exaggeration = options.exaggeration ?? 1;
-  const meanElev = (options.grid.min + options.grid.max) / 2;
-  // Convert the post-exaggeration elevation range from real meters to
-  // print mm. A 300 m elevation range with 1.5× exag → 45 mm of Z headroom.
-  const topOffsetMm =
-    Math.max(0, (options.grid.max - meanElev) * exaggeration) *
-    PRINT_SCALE_MM_PER_M;
-
   // The plinth is a flat-topped prism. Bottom at `z = -baseThicknessMm`,
-  // top at `z = topZ`. We give the plinth at least 1 mm of elevation
-  // headroom above z=0 so it always reads as a solid base even when
-  // the elevation range is zero.
-  const topZ = Math.max(1, topOffsetMm);
+  // top at `z = topZ`. `computePlinthTopZ` handles the elevation→mm
+  // conversion and guarantees at least 1 mm of headroom above z=0 so
+  // the plinth always reads as a solid base even when the elevation
+  // range is zero.
+  const topZ = computePlinthTopZ(options.grid, exaggeration);
   const totalHeightMm = options.baseThicknessMm + topZ;
   const solid = ManifoldCtor.extrude(cs, totalHeightMm);
   // Translate so the plinth bottom sits at z = -baseThicknessMm and the

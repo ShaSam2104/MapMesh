@@ -16,6 +16,15 @@ const log = tagged('terrarium');
 const BASE_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium';
 const TILE_SIZE = 256;
 
+/**
+ * Hard timeout per tile request. AWS occasionally stalls individual
+ * Terrarium tiles for tens of seconds; without this bound the rebuild
+ * pipeline can hang indefinitely with no visible progress. 15 s is
+ * generous enough to absorb any real-world tail latency while still
+ * surfacing a clean failure the zoom-step-down fallback can handle.
+ */
+const TILE_FETCH_TIMEOUT_MS = 15_000;
+
 export interface ElevationGrid {
   /** Width in samples. */
   width: number;
@@ -102,7 +111,17 @@ async function fetchTileRgba(
   y: number,
 ): Promise<Uint8ClampedArray> {
   const url = `${BASE_URL}/${z}/${x}/${y}.png`;
-  const res = await fetch(url, { mode: 'cors' });
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new Error('timeout')),
+    TILE_FETCH_TIMEOUT_MS,
+  );
+  let res: Response;
+  try {
+    res = await fetch(url, { mode: 'cors', signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
     throw new Error(`terrarium tile ${z}/${x}/${y} → ${res.status}`);
   }

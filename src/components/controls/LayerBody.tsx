@@ -16,11 +16,16 @@ export function LayerBody({ layerKey }: LayerBodyProps): JSX.Element {
   const toggleVisible = useStore((s) => s.toggleLayerVisible);
   const toggleExport = useStore((s) => s.toggleLayerExport);
   const setOffset = useStore((s) => s.setLayerHeightOffset);
+  const setWidthMeters = useStore((s) => s.setLayerWidthMeters);
+  const setHeightScale = useStore((s) => s.setLayerHeightScale);
   const reset = useStore((s) => s.resetLayerDefaults);
 
   const defaultHex = defaultColor(layerKey, theme);
   const isBase = layerKey === 'base';
   const isGpx = layerKey === 'gpxPath';
+  const hasWidth =
+    layerKey === 'roads' || layerKey === 'piers' || layerKey === 'gpxPath';
+  const hasHeightScale = layerKey === 'buildings';
 
   return (
     <div className="space-y-3 pt-2">
@@ -57,6 +62,28 @@ export function LayerBody({ layerKey }: LayerBodyProps): JSX.Element {
             step={0.1}
             unit="mm"
           />
+          {hasWidth && (
+            <Slider
+              label="Line width"
+              value={layer.widthMeters ?? 0}
+              onChange={(v) => setWidthMeters(layerKey, v)}
+              min={0.5}
+              max={30}
+              step={0.5}
+              unit="m"
+            />
+          )}
+          {hasHeightScale && (
+            <Slider
+              label="Building height scale"
+              value={layer.heightScale ?? 1}
+              onChange={(v) => setHeightScale(layerKey, v)}
+              min={0.3}
+              max={3}
+              step={0.1}
+              unit="×"
+            />
+          )}
         </>
       )}
       <button

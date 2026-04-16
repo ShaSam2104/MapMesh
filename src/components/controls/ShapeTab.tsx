@@ -12,7 +12,7 @@ export function ShapeTab(): JSX.Element {
   const setRotation = useStore((s) => s.setRotation);
   const setBaseThickness = useStore((s) => s.setBaseThickness);
   const setExaggeration = useStore((s) => s.setExaggeration);
-  const generate = useGenerateMesh();
+  const { generate } = useGenerateMesh();
 
   const [lng, lat] = selection.center;
   const busy = status === 'fetching' || status === 'building';

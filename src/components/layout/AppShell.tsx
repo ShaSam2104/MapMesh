@@ -8,14 +8,16 @@ import { SceneCanvas } from '@/components/scene/SceneCanvas';
 import { ShapeTab } from '@/components/controls/ShapeTab';
 import { LayerAccordion } from '@/components/controls/LayerAccordion';
 import { PathTab } from '@/components/controls/PathTab';
+import { TextTab } from '@/components/controls/TextTab';
 import { ExportPanel } from '@/components/controls/ExportPanel';
 
-type Tab = 'shape' | 'style' | 'path' | 'export';
+type Tab = 'shape' | 'style' | 'path' | 'text' | 'export';
 
 const TAB_LABEL: Record<Tab, string> = {
   shape: 'Shape',
   style: 'Style',
   path: 'Path',
+  text: 'Text',
   export: 'Export',
 };
 
@@ -43,6 +45,7 @@ export function AppShell(): JSX.Element {
           {tab === 'shape' && <ShapeTab />}
           {tab === 'style' && <LayerAccordion />}
           {tab === 'path' && <PathTab />}
+          {tab === 'text' && <TextTab />}
           {tab === 'export' && <ExportPanel />}
         </InspectorDrawer>
       </div>

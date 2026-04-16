@@ -4,7 +4,15 @@ Generate 3D-printable city meshes from any map area, with optional Strava GPX ov
 
 MeshMap is a web app that lets you pick an area on a map, previews a premium instrument-style 3D rendering of the terrain + buildings + roads + water + parks + piers, and exports a watertight **STL** or **3MF** file ready for PrusaSlicer or Bambu Studio.
 
-Inspired by [map2model.com](https://map2model.com)'s "select area → preview → export" flow, elevated with a Cartographer's Workbench UI and a GPX path overlay feature.
+Inspired by [map2model.com](https://map2model.com)'s "select area → preview → export" flow, elevated with a Cartographer's Workbench UI, a GPX path overlay, and raised-text labels on plinth sides.
+
+## Features
+
+- **Select any area** on a maplibre 2D map — square, circle, or hex selection, 0.5–3 km.
+- **Instant parameter edits.** Slider changes (base thickness, vertical exaggeration, per-layer widths, building height scale) rebuild the geometry locally from cached raw data — Terrarium + Overpass only re-fetch when the selection itself changes.
+- **GPX overlay.** Drop in a Strava track and it drapes over the terrain with auto-recenter.
+- **Raised-text labels.** Pick any of the ~1929 Google Fonts families, set letter height / extrusion / side / alignment, and the text lands on a watertight flange extending the plinth.
+- **Watertight exports.** STL (single merged solid) or 3MF (per-layer + per-label coloured parts) via manifold-3d + @jscadui/3mf-export.
 
 ## Quick start
 
@@ -57,6 +65,7 @@ Every geometry operation, boolean, triangulation, and file export is delegated t
 - [`docs/EXPORT_FORMATS.md`](docs/EXPORT_FORMATS.md)
 - [`docs/STYLE_GUIDE.md`](docs/STYLE_GUIDE.md)
 - [`docs/TESTING.md`](docs/TESTING.md)
+- [`docs/FONTS.md`](docs/FONTS.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ## License

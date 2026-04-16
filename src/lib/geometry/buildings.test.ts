@@ -88,6 +88,30 @@ describe('buildBuildings', () => {
     expect(zSpan).toBeCloseTo(10.0, 3);
   });
 
+  it('applies heightScale on top of exaggeration (print mm)', () => {
+    const features = [square(0, 0, 0.00005, { building: 'yes', height: '10' })];
+    const merged = buildBuildings(features, {
+      origin: ORIGIN,
+      exaggeration: 2,
+      heightScale: 1.5,
+    });
+    expect(merged).not.toBeNull();
+    merged!.computeBoundingBox();
+    const zSpan = merged!.boundingBox!.max.z - merged!.boundingBox!.min.z;
+    // 10 m × 2 (exag) × 1.5 (heightScale) × 0.1 mm/m = 3.0 mm print.
+    expect(zSpan).toBeCloseTo(3.0, 3);
+  });
+
+  it('defaults heightScale to 1 when omitted', () => {
+    const features = [square(0, 0, 0.00005, { building: 'yes', height: '10' })];
+    const merged = buildBuildings(features, { origin: ORIGIN });
+    expect(merged).not.toBeNull();
+    merged!.computeBoundingBox();
+    const zSpan = merged!.boundingBox!.max.z - merged!.boundingBox!.min.z;
+    // 10 m × 1 × 1 × 0.1 = 1.0 mm print.
+    expect(zSpan).toBeCloseTo(1.0, 3);
+  });
+
   it('clamps absurd OSM height tags to MAX_BUILDING_HEIGHT_M', () => {
     // A broadcast tower mistagged as `building=yes` with height=9999 used
     // to produce 5999 mm tall obelisks in the preview. Clamp to the

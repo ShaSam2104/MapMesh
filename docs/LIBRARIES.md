@@ -40,6 +40,14 @@ Every library in MeshMap has a responsibility it owns. If something in the geome
 | osmtogeojson | ^3.0 | Overpass JSON → GeoJSON FeatureCollection with correct multipolygon handling. |
 | @tmcw/togeojson | ^6.0 | GPX → GeoJSON. |
 
+## Fonts (raised text labels)
+
+| Library | Version | Responsibility |
+|---|---|---|
+| opentype.js | ^1.3.4 | Parse OTF/TTF, produce glyph `ShapePath`s that feed straight into `THREE.ExtrudeGeometry`. The single source of truth for glyph outlines — we never hand-write path math. |
+| wawoff2 | ^2.0.1 | WASM WOFF2 decompressor. Google Fonts serves WOFF2; opentype.js only understands OTF/TTF, so we pipe through wawoff2 once on first fetch. Loaded lazily via dynamic import so the WASM stays off the critical path until a user actually adds a text label. |
+| @types/opentype.js | ^1.3.8 | Dev-only type declarations for opentype.js. |
+
 ## UI
 
 | Library | Version | Responsibility |
@@ -104,6 +112,12 @@ Overpass JSON has three node types and relations with multipolygon stitching. Wr
 ### Why `manifold-3d` instead of three.js CSG libraries
 
 three.js CSG libraries (`three-bvh-csg`, `three-csg-ts`) are JavaScript implementations with known edge-case failures on heightfields. `manifold-3d` is Google's production-grade WASM CSG kernel used in Blender. It guarantees manifold output by construction. The 2.5 MB WASM download is lazy-loaded only on first Generate click.
+
+### Why `opentype.js` + `wawoff2` for text
+
+Text labels on plinth flanges need real-world font glyphs (not bitmap fonts, not a raster). Golden rule #1 forbids custom geometry, which rules out hand-rolled Bezier → polygon tessellators. opentype.js is the canonical JS library for parsing OTF/TTF and already produces `ShapePath` objects whose commands map 1:1 to `THREE.Shape`, so the only "conversion" code we write is a format adapter — not geometry. Google Fonts, however, only delivers WOFF2 from its CSS2 endpoint, which opentype.js cannot read. `wawoff2` is the Google-maintained WASM port of the upstream `woff2` decoder and is the smallest dependency that lets us accept arbitrary Google Fonts families without shipping thousands of pre-converted TTFs in the bundle.
+
+See [`docs/FONTS.md`](FONTS.md) for the full pipeline and the `googleFontsListFull.json` snapshot refresh procedure.
 
 ## Upgrade notes
 

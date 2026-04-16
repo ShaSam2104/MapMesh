@@ -14,7 +14,7 @@ describe('unionExportManifold', () => {
   it('returns null when no plinth manifold is present', async () => {
     const layers = defaultLayers('dark');
     const result = await unionExportManifold({
-      mesh: { status: 'idle', layerGeometries: {} },
+      mesh: { status: 'idle', layerGeometries: {}, textLabelGeometries: {} },
       layers,
     });
     expect(result).toBeNull();

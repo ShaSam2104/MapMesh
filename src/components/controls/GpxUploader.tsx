@@ -15,7 +15,7 @@ export function GpxUploader(): JSX.Element {
   const setSelectionCenter = useStore((s) => s.setSelectionCenter);
   const setView = useStore((s) => s.setView);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const generate = useGenerateMesh();
+  const { generate } = useGenerateMesh();
 
   const onFile = async (file: File) => {
     const text = await file.text();

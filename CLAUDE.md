@@ -26,6 +26,7 @@ MeshMap generates 3D-printable city meshes from a map area. See [`README.md`](RE
 - **@turf/turf** for GeoJSON ops (bbox, intersect, buffer, centroid)
 - **osmtogeojson** for Overpass JSON → GeoJSON
 - **@tmcw/togeojson** for GPX → GeoJSON
+- **opentype.js** + **wawoff2** (WASM) for Google Fonts → extrusion glyphs used by plinth-side text labels
 - **zustand** (single flat store)
 - **consola** + ring buffer for logging
 
@@ -49,6 +50,10 @@ Every geometry responsibility has a library owner.
 | GPX parsing | @tmcw/togeojson |
 | GPX 3D tube | THREE.TubeGeometry |
 | Merging geometries | three-stdlib BufferGeometryUtils |
+| Font parsing (Google Fonts OTF) | opentype.js |
+| WOFF2 → OTF decompression | wawoff2 (WASM) |
+| Raised-text glyph extrusion | opentype.js ShapePath → THREE.ExtrudeGeometry |
+| Plinth flange text placement | THREE.Matrix4 basis + manifold-3d polygon union |
 | STL export | three-stdlib STLExporter |
 | 3MF export | @jscad/modeling + @jscadui/3mf-export |
 
@@ -77,8 +82,10 @@ src/
     geo/        projection + shapes + bbox
     data/       terrarium + overpass + gpx fetchers
     geometry/   three.js geometry builders (wired to libraries)
-    manifold/   manifold-3d wiring + watertight plinth
-    exporters/  STL + 3MF exporters
+                + text glyphs + flange specs + placeTextOnFlange
+    fonts/      Google Fonts snapshot + browser CSS2 fetch pipeline
+    manifold/   manifold-3d wiring + watertight plinth (with flanges)
+    exporters/  STL + 3MF exporters (plinth + layers + text labels)
     log/        consola + ring buffer + timing
   state/        zustand store
 docs/           all project docs (see README)
@@ -102,4 +109,5 @@ All docs live in [`docs/`](docs/). Root stays clean (only `README.md` + this fil
 - [`docs/EXPORT_FORMATS.md`](docs/EXPORT_FORMATS.md) — STL, 3MF, slicer compat
 - [`docs/STYLE_GUIDE.md`](docs/STYLE_GUIDE.md) — visual tokens, type scale
 - [`docs/TESTING.md`](docs/TESTING.md) — test philosophy + fixtures
+- [`docs/FONTS.md`](docs/FONTS.md) — Google Fonts pipeline + snapshot refresh
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — Shopify/Medusa v2 plans

@@ -35,7 +35,13 @@
 
 import type * as THREE from 'three';
 import type { Manifold } from 'manifold-3d';
-import { LAYER_ORDER, type LayerKey, type Layers, type MeshState } from '@/types';
+import {
+  LAYER_ORDER,
+  type LayerKey,
+  type Layers,
+  type MeshState,
+  type TextLabel,
+} from '@/types';
 import { LAYER_LABEL } from '@/lib/palette';
 import { toBufferGeometry } from '@/lib/manifold/toBufferGeometry';
 import { tagged } from '@/lib/log/logger';
@@ -50,8 +56,13 @@ const log = tagged('export-parts');
  * per-filament project settings.
  */
 export interface ExportPart {
-  /** Stable key (layer id or `'base'` for the plinth). */
-  key: LayerKey;
+  /**
+   * Stable key. For layer parts this is the `LayerKey` (or `'base'`
+   * for the plinth). Text label parts carry a synthetic key in the
+   * form `text:<labelId>` so the 3MF object tree stays stable across
+   * rebuilds without colliding with any future layer key.
+   */
+  key: LayerKey | `text:${string}`;
   /** Human-readable label shown in the slicer's object tree. */
   name: string;
   /** Hex colour `#RRGGBB` — exactly what the Style tab shows. */
@@ -63,6 +74,12 @@ export interface ExportPart {
 export interface BuildExportPartsInput {
   mesh: MeshState;
   layers: Layers;
+  /**
+   * Full text-label list so we can look up per-label colours + names
+   * when building text parts. Parts whose label is missing from this
+   * list (deleted mid-export) are silently skipped.
+   */
+  textLabels?: readonly TextLabel[];
 }
 
 /**
@@ -122,9 +139,29 @@ export async function buildExportParts(
     await tick();
   }
 
+  // 3. Text labels — one coloured part per label. Text geometries are
+  //    already in absolute mm world coordinates (placed on the flange
+  //    outer face) so no translate is needed.
+  const textLabels = input.textLabels ?? [];
+  let textAdded = 0;
+  for (const label of textLabels) {
+    const source = mesh.textLabelGeometries?.[label.id];
+    if (!source) continue;
+    const geometry = source.clone();
+    parts.push({
+      key: `text:${label.id}`,
+      name: `Text: ${label.content}`,
+      colorHex: label.color,
+      geometry,
+    });
+    textAdded++;
+    await tick();
+  }
+
   log.info('export parts ready', {
     count: parts.length,
     layersAdded: added,
+    textAdded,
     topZ,
   });
   done();

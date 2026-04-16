@@ -28,7 +28,7 @@ export function ExportPanel(): JSX.Element {
   const doExport = async () => {
     // Pull the live mesh + layers slice at click time so the export reflects
     // any layer toggles the user made after Generate.
-    const { mesh, layers } = useStore.getState();
+    const { mesh, layers, textLabels } = useStore.getState();
     setBusy(true);
     // Let React paint the "Exporting…" state + spinner BEFORE we drop
     // into the synchronous WASM work. Without this yield, React batches
@@ -66,7 +66,7 @@ export function ExportPanel(): JSX.Element {
         // Every part is individually watertight (converted through
         // manifold-3d) so Bambu Studio sees a tree of clean coloured
         // bodies instead of one giant non-manifold blob.
-        const parts = await buildExportParts({ mesh, layers });
+        const parts = await buildExportParts({ mesh, layers, textLabels });
         if (parts.length === 0) {
           log.warn('export aborted: no parts');
           return;
